@@ -6,7 +6,7 @@ class ApiController extends Controller
     /**
      * Key which has to be in HTTP USERNAME and PASSWORD headers
      */
-    Const APPLICATION_ID = 'CNKAPP';
+    Const APPLICATION_ID = 'FORDAPP';
 
     /**
      * Default response format
@@ -48,7 +48,6 @@ class ApiController extends Controller
         switch($model)
         {
             case 'widget':
-
                 if (isset($_GET['widget_type_id'])){
                     $value = $_GET['widget_type_id'];
                     $field = 'widget_type_id';
@@ -70,9 +69,6 @@ class ApiController extends Controller
                 $models = WidgetType::model()->findAll($criteria);
                 break;
             case 'page':
-                //get page by sef
-                //get page by id
-
                 break;
             case 'phase':
                 if (isset($_GET['status'])){
@@ -87,87 +83,59 @@ class ApiController extends Controller
                 $models = Phase::model()->findAll($criteria);
                 break;
             case 'content':
-                if (!isset($gallery_id) || empty($gallery_id) ){
-                    $this->_sendResponse(500, 'Error: Parameter Gallery Id is missing.' );
-                }
+                /**
+                 * Mandatory params
+                 * bool $is_ugc
+                 *
+                 * Optional Params
+                 * int $gallery_id
+                 * int $user_id
+                 * int $limit
+                 * int $offset
+                 * string $channel
+                 * string $status
+                 * string $location
+                 * string order
+                 */
+                $is_ugc = isset($_GET['is_ugc']) && !empty($_GET['is_ugc']) ? $_GET['is_ugc'] : '0'; //mandatory
+                $gallery_id = isset($_GET['gallery_id']) && !empty($_GET['gallery_id']) ? (int)$_GET['gallery_id'] : null;
+                $limit = isset( $_GET['limit'] ) && !empty($_GET['limit']) ? (int)$_GET['limit'] : null;
+                $offset = isset( $_GET['offset']) && !empty($_GET['offset']) ? (int)$_GET['offset'] : null;
+                $user_id = isset( $_GET['user_id']) && !empty($_GET['user_id']) ? (int)$_GET['user_id'] : null;
+                $channel = isset( $_GET['channel']) && !empty($_GET['channel']) ? $_GET['channel'] : null;
+                $city = isset( $_GET['city']) && !empty($_GET['city']) ? $_GET['city'] : null;
+                $orderBy = isset( $_GET['order']) && !empty($_GET['order']) ? $_GET['order'] : 't.id DESC';
 
-                //default status and sort order of the list
-                $status = 'approved';
-                $orderBy = 't.id DESC';
-
-                //type of request UGC|Gallery
-                $type = isset($_GET['type']) && !empty($_GET['type']) ? $_GET['type'] : 'gallery';
-
-                //set the mode popular|latest
-                $mode = isset($_GET['mode']) && !empty($_GET['mode']) ? $_GET['mode'] : 'none';
-
-                //limit -1(all)|count
-                $limit = isset( $_GET['limit']) && !empty($_GET['limit']) ? $_GET['limit'] : 30 ;
-
-                //set the offset
-                $offset = isset( $_GET['offset']) && !empty($_GET['offset']) ? $_GET['offset'] : 0;
-
-                //username - name of the user submitting content
-                $username = isset( $_GET['username']) && !empty($_GET['username']) ? $_GET['username'] : '';
-
-                $contentType = isset( $_GET['content_type']) && !empty($_GET['content_type']) ? $_GET['content_type'] : '';
-
-                //set the status and order by
-                if ($type == 'gallery'){
-                    $status = 'active';
-                } else if ($type == 'UGC'){
-                    if ($mode == 'popular'){
-                        $orderBy = 't.vote DESC';
-                    } else if ($mode == 'latest'){
-                        $orderBy = 't.date_created DESC';
-                    } else {
-                        $orderBy = 't.id DESC';
-                    }
-                }
-
-                $condition = " t.gallery_id = :galleryId ";
-
-                if ($contentType){
-                    $typeWhr = array();
-                    foreach($contentType as $cType){
-                        if(strtolower($cType) == 'blog'){
-                            $typeWhr[] = " t.type IN ('text','blog') ";
-                        } else if(strtolower($cType) == 'file'){
-                            $typeWhr[] = " t.type IN ('ppt','pdf','doc') ";
-                        } else {
-                            $typeWhr[] = " t.type = '".$cType."' ";
-                        }
-                    }
-
-                    $condition .= " AND ( ".implode($typeWhr,' OR ').") ";
-                }
-
-                if ($username){
-                    $condition .= " AND ( user.first_name like '%".$username."%' OR user.last_name like '%".$username."%' ) ";
-                }
-
-                if ($status){
-                    $condition .= " AND t.status = '".$status."'" ;
-                }
-
-
-                //setting up the criteria
+                //set the query criteria
                 $criteria=new CDbCriteria;
-                $criteria->with = 'user';
                 $criteria->order = $orderBy;
 
-                //set limit
-                if ($limit && $limit != '-1'){
+                if (isset($limit)){
                     $criteria->limit = $limit;
                 }
-
-                //set offest
-                if ($offset){
+                if (isset($offset)){
                     $criteria->offset = $offset;
                 }
-                //$gallery_id = 4;
+
+                //setup query conditions
+                $condition = " 1 = 1 ";
+
+                if (isset($gallery_id)){
+                    $condition .= " AND t.gallery_id = ".$gallery_id;
+                }
+
+                if (isset($user_id)){
+                    $condition .= " AND t.user_id =".$user_id;
+                }
+                if (isset($channel)){
+                    $condition .= " AND t.channel_name =".$channel;
+                }
+                if (isset($city)){
+                    $condition .= " AND t.city =".$city;
+                }
+
                 $criteria->condition = $condition;
-                $criteria->params = array(':galleryId' => $gallery_id );
+
                 //echo '<pre>';print_r($criteria);exit;
                 $model = Content::model()->findAll($criteria);
 
@@ -185,97 +153,6 @@ class ApiController extends Controller
                         }
                         $models[] = $content;
                     }
-                }
-
-                break;
-            case 'social':
-                $criteria=new CDbCriteria;
-                $criteria->limit = $limit;
-                $criteria->offset = $offset;
-                $criteria->order = 'id DESC';
-                $sinceId = isset($_GET['sinceId']) && $_GET['sinceId'] != '' ? $_GET['sinceId'] : null;
-
-                $criteria->addCondition( "post_status = 'approved'" );
-                if( isset($sinceId) ){
-                    $criteria->addCondition( " id > :sinceId " );
-                    $criteria->params = array(':sinceId' => $sinceId);
-                }
-
-                //$criteria->condition = "post_status = :status";
-                //$criteria->params = array(':status' => 'approved');
-                $models = SocialPost::model()->findAll($criteria);
-
-                if (empty($models)){
-                    $this->_sendResponse(200, CJSON::encode(array()), $callback);
-                }
-                break;
-            case 'shortlisted':
-                $criteria = new CDbCriteria;
-                $criteria->compare('status', 'active');
-                $criteria->compare('is_shortlisted', '1');
-                $criteria->limit = 50;
-                $criteria->offset = 0;
-                $criteria->order = 't.id DESC';
-                $criteria->with = 'userProfiles';
-
-                $model = Users::model()->findAll($criteria);
-                $models = array();
-
-                foreach ($model as $userDet) {
-                    $user = new stdClass();
-                    $user->id = $userDet->id;
-                    $user->first_name =  $userDet->first_name;
-                    $user->last_name =  $userDet->last_name;
-                    $user->email =  $userDet->email;
-                    $user->is_shortlisted =  $userDet->is_shortlisted;
-                    $user->is_winner =  $userDet->is_winner;
-                    $user->profileImage  =  $userDet->userProfiles->profile_image;
-
-                    //$user->profileImage = '';
-
-
-                    /*
-                    foreach ($user->userProfiles as $usr) {
-                        if (isset($usr->profile_image) && ($count < 11)) {
-                            $shortListUser[$user->id] = $usr->profile_image;
-                            $count++;
-                            $models[] =$usr;
-                        }
-                    }*/
-                    $models[] = $user   ;
-                }
-
-                if (empty($models)){
-                    $this->_sendResponse(200, CJSON::encode(array()), $callback);
-                }
-                break;
-            case 'winner':
-                $criteria = new CDbCriteria;
-                $criteria->compare('status', 'active');
-                $criteria->compare('is_winner', '1');
-                $criteria->limit = $limit;
-                $criteria->offset = 0;
-                $criteria->order = 't.id DESC';
-                $criteria->with = 'userProfiles';
-
-                $model = Users::model()->findAll($criteria);
-                $models = array();
-
-                foreach ($model as $userDet) {
-                    $user = new stdClass();
-                    $user->id = $userDet->id;
-                    $user->fullname =  $userDet->userProfiles->full_name;
-                    $user->email =  $userDet->email;
-                    $user->is_shortlisted =  $userDet->is_shortlisted;
-                    $user->is_winner =  $userDet->is_winner;
-                    $user->profileImage  =  $userDet->userProfiles->profile_image;
-                    $user->occupation   =  $userDet->userProfiles->occupation;
-                    $user->about   =  $userDet->userProfiles->about_me;
-                    $models[] = $user   ;
-                }
-
-                if (empty($models)){
-                    $this->_sendResponse(200, CJSON::encode(array()), $callback);
                 }
                 break;
             default:
@@ -355,142 +232,27 @@ class ApiController extends Controller
 	{
         switch($_GET['model'])
         {
-            case 'vote':
-                $id = isset($_POST['content']) ? $_POST['content'] : null;
-                if (!$id || !isset($_POST['email']) || empty($_POST['email'])){
-                    //return failure
-                    $this->_sendResponse(401, 'Error: Content Id is invalid.');
-                }
+            case 'content':
 
-                //check if not already voted for the same content
-                $userVote = ContentVote::model()->find(
-                                array(
-                                    'condition'=>'content_id = :id AND username = :email',
-                                    'params'=>array(':id'=>$id,':email'=>$_POST['email']),
-                                    'limit' => 1,
-                                )
-                            );
-
-                if (!$userVote){
-                    $userVote = new ContentVote();
-                    //save the user vote
-                    $attributes = array(
-                        'content_id' => $id,
-                        'date' => date('Y-m-d h:i:s'),
-                        'user_ip' => $_SERVER['REMOTE_ADDR'],
-                        'auth_source' => 'site',
-                        'social_id'   => $_POST['name'],
-                        'username' => $_POST['email'],
-                        'environment_id' => 1,
-                    );
-                    $userVote->attributes = $attributes;
-                    if($userVote->save()){
-                        //increment the vote count
-                        $content = Content::model()->findByPk($id);
-                        $newVoteCount = $content->vote += 1;
-                        $content->save();
-
-                        //return success and new vote count;
-                        $this->_sendResponse(200,CJSON::encode(array('response'=>'success', 'message'=>'Voting Successful','vote'=>$newVoteCount)));
-                        Yii::app()->end();
-                    } else {
-                        //return failure: cannot save vote information
-                        $this->_sendResponse(200,CJSON::encode(array('response'=>'failure', 'message'=>"Cannot save vote information")));
-                        Yii::app()->end();
-                    }
-                } else {
-                    //return failure: already Voted
-                    $this->_sendResponse(200,CJSON::encode(array('response'=>'failure', 'message'=>"Already Voted")));
-                    Yii::app()->end();
-                }
-                break;
-            case 'socialAuth':
-
-                if(!isset($_POST['social']) || !isset($_POST['identifier'])){
-                    $this->_sendResponse(501,sprintf('Email address is mandatory'));
+                if ( !$_POST['user_id'] || !$_POST['gallery_id'] ){
+                    $this->_sendResponse(404,sprintf('Mandatory fields user_id and gallery_id not available'));
                     Yii::app()->end();
                 }
 
-                //add data for user with unique email
-                $auth = SocialAuth::model()->find(
-                    array(
-                        'condition'=>'identifier = :id || email = :email',
-                        'params'=>array(':id'=>$_POST['identifier'],':email'=>$_POST['email']),
-                        'limit' => 1,
-                        'order' => 'date_added DESC',
-                    ));
-                if ($auth){
-                    $this->_sendResponse(200,sprintf('Auth already exists for email %s', $_POST['email']));
+                //check if this same user has not already submitted for
+                $isContent = Content::model()->findAll(
+                    'user_id = :user_id AND gallery_id = :galleryId AND channel_name = :channel AND status != :status ',
+                    array(':user_id'=>$_POST['user_id'],':galleryId'=>$_POST['gallery_id'],':channel'=> $_POST['channel_name'], ':status' => 'rejected')
+                );
+
+                if ($isContent){
+                    //already content exists for this user
+                    //hence throw error
+                    $this->_sendResponse(404,sprintf('Already posted for this Celebrity.'));
                     Yii::app()->end();
                 }
-                $model = new SocialAuth();
-                break;
-            case 'socialPost':
-                if(isset($_POST['post_text']) && isset($_POST['source'])){
-
-                    $id = $_POST['user_id'];
-                    $user=SocialAuth::model()->find(array(
-                        'condition'=>'identifier=:id',
-                        'params'=> array(':id'=>$id),
-                        'limit'=>1,
-                        'order'=>'date_added DESC',
-                    ));
-
-                    //if (!$user){
-                    //    $this->_sendResponse(401, 'Error: Specified user does not exists');
-                    //}
-
-                    $model = new SocialPost();
-
-                    $_POST['stream_id']         = -1;
-                    $_POST['post_id']           = -1;
-                    $_POST['post_lang']         = "en";
-                    $_POST['user_lang']         = "en";
-                    $_POST['date_published']    = date('c');
-                    $_POST['date_published_ts'] = time();
-                    $_POST['post_status']       = 'new';
-                    $_POST['post_type']         = 'post';
-                    $_POST['post_url']          = null;
-                    $_POST['date_created']      = date("Y-m-d h:i:s");
-                    $_POST['date_modified']     = $_POST['date_created'];
-                    $_POST['post_hash']         = md5($_POST['date_published']."|".$_POST['post_url']);
-                    $_POST['user_location']     = (isset($user)) ? $user->location : null;
-                    $_POST['user_url']          = (isset($user)) ? $user->profile_url : null;
-                    $_POST['post_status']       = 'new';
-
-                } else {
-                    $this->_sendResponse(401, 'Error: Invalid parameters.');
-                }
-                break;
-            // Get an instance of the respective model
-            case 'subscription':
-
-                if(!isset($_POST['email'])){
-                    $this->_sendResponse(501,sprintf('Email address is mandatory'));
-                    Yii::app()->end();
-                }
-                $email = $_POST['email'];
-                $user_ip = isset($_POST['user_id']) ? $_POST['user_ip'] : $_SERVER['REMOTE_ADDR'];
-                $page_title = isset($_POST['page_title']) ? $_POST['page_title'] : 'curtain-raiser';
-
-                //get the email address
-                //check if any user already exists with the same email
-                $criteria=new CDbCriteria;
-                $criteria->condition = "email = :email AND page_title = :page_title";
-                $criteria->params = array(
-                                        ':email' => $email,
-                                        ':page_title' => $page_title,
-                                    );
-
-                $subcriber = Subscription::model()->findAll($criteria);
-
-                if (count($subcriber) > 0){
-                    $this->_sendResponse(200,sprintf('Subscription for email %s already exists', $email));
-                    Yii::app()->end();
-                }
-
-                //now save this model;
-                $model = new Subscription();
+                //now post and save this content
+                $model = new Content();
                 break;
             default:
                 $this->_sendResponse(501,sprintf('Mode <b>create</b> is not implemented for model <b>%s</b>',$_GET['model']) );
