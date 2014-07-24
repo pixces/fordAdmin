@@ -292,7 +292,46 @@ class ApiController extends Controller
 
     public function actionUpdate()
     {
-        $this->render('update');
+
+        switch($_GET['model'])
+        {
+            case 'content':
+                if ( !$_POST['user_id'] || !$_POST['gallery_id'] ){
+                    $this->_sendResponse(200,sprintf('Mandatory fields user_id and gallery_id not available'));
+                    Yii::app()->end();
+                }
+
+                $data = json_decode($_POST['update'], true);
+                $model = new Content();
+
+                if ($_POST['update_type'] == 'partial'){
+                    //partial record update based on criteria
+                    $qStr = array();
+                    foreach($_POST as $var => $value){
+                        if($model->hasAttribute($var)){
+                            $qStr[] = $var."=".$value;
+                        }
+                    }
+                    $criteria = "'".implode(' AND ',$qStr)."'";
+
+                    try{
+                        Content::model()->updateAll($data, $criteria);
+                        $this->_sendResponse(200,sprintf('success'));
+
+                    } catch (Exception $e){
+                        $this->_sendResponse(200,var_export($e, true));
+                    }
+                } else {
+                    //full update based on id
+
+
+                }
+                break;
+            default:
+                $this->_sendResponse(501,sprintf('Mode <b>update</b> is not implemented for model <b>%s</b>',$_GET['model']) );
+                Yii::app()->end();
+                break;
+        }
     }
 
     public function actionDelete()

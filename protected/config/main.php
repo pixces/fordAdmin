@@ -64,9 +64,9 @@ return array(
                 array('api/getSocialUser', 'pattern'=>'api/v1/getSocialUser/<social:\w+>', 'verb'=>'GET'),
                 array('api/authenticate', 'pattern'=>'api/v1/authenticate/<social:\w+>', 'verb'=>'GET'),
                 array('api/list', 'pattern'=>'api/v1/<model:\w+>', 'verb'=>'GET'),
-                array('api/post', 'pattern'=>'api/v1/post/<social:\w+>', 'verb'=>'POST'),
                 array('api/view', 'pattern'=>'api/v1/<model:\w+>/<id:\d+>', 'verb'=>'GET'),
                 array('api/create', 'pattern'=>'api/v1/<model:\w+>', 'verb'=>'POST'),
+                array('api/update', 'pattern'=>'api/v1/update/<model:\w+>', 'verb'=>'POST'),
 
                 //disable all put and delete rest patterns
                 //array('api/update', 'pattern'=>'api/<model:\w+>/<id:\d+>', 'verb'=>'PUT'),
