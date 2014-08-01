@@ -238,21 +238,38 @@ class ApiController extends Controller
                     $this->_sendResponse(404,sprintf('Mandatory fields user_id and gallery_id not available'));
                     Yii::app()->end();
                 }
+                $saveType = 'new';
+                $data = array();
+                $model = new Content();
 
                 //check if this same user has not already submitted for
                 $isContent = Content::model()->findAll(
-                    'user_id = :user_id AND gallery_id = :galleryId AND channel_name = :channel AND status != :status ',
-                    array(':user_id'=>$_POST['user_id'],':galleryId'=>$_POST['gallery_id'],':channel'=> $_POST['channel_name'], ':status' => 'rejected')
+                    'user_id = :user_id AND gallery_id = :galleryId AND channel_name = :channel',
+                    array(':user_id'=>$_POST['user_id'],':galleryId'=>$_POST['gallery_id'],':channel'=> $_POST['channel_name'])
                 );
 
                 if ($isContent){
-                    //already content exists for this user
-                    //hence throw error
-                    $this->_sendResponse(404,sprintf('Already posted for this Celebrity.'));
-                    Yii::app()->end();
+                    $id = $isContent[0]->id;
+                    $saveType = 'edit';
+
+                    //post an update of this content
+                    $content = $model->findByPk($id);
+                    $content->description = $_POST['description'];
+                    $content->status = 'pending';
+
+                    if ($content->save()){
+                        $message = $content;
+                        $this->_sendResponse(200, CJSON::encode($message));
+                    }
+                } else {
+                    //lets create a new record
+                    //now post and save this content
+                    foreach($_POST as $field => $val){
+                        if ($model->hasAttribute($field)){
+                            $data[$field] = $val;
+                        }
+                    }
                 }
-                //now post and save this content
-                $model = new Content();
                 break;
             default:
                 $this->_sendResponse(501,sprintf('Mode <b>create</b> is not implemented for model <b>%s</b>',$_GET['model']) );
@@ -261,14 +278,16 @@ class ApiController extends Controller
         }
 
         // Try to assign POST values to attributes
-        foreach($_POST as $var=>$value) {
+        foreach($data as $var=>$value) {
 
             if($model->hasAttribute($var)){
                 $model->$var = $value;
             } else {
-                $this->_sendResponse(500, sprintf('Parameter <b>%s</b> is not allowed for model <b>%s</b>', $var, $_GET['model']) );
+                echo $msg = sprintf('Parameter <b>%s</b> is not allowed for model <b>%s</b>', $var, $_GET['model']);
+                $this->_sendResponse(500, $msg );
             }
         }
+
         // Try to save the model
         if($model->save()){
             $message = $model;
