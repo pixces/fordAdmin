@@ -29,26 +29,29 @@
  * @property string $date_modified
  * @property string $location
  * @property integer $vote
+ * @property string $image
  *
  * The followings are the available model relations:
  * @property AbuseReports[] $abuseReports
  * @property Galleries $gallery
  * @property Users $user
+ * @property UserProfile $userProfiles
  * @property ContentViews[] $contentViews
  * @property ContentVotes[] $contentVotes
  */
 class Content extends CActiveRecord
 {
-    public $image;
+
     public $video;
     public $file;
     public $ppt;
     public $pdf;
     public $doc;
     public $upload_type;
-    public $locations;
-    public $is_submitted;
-    public $vote;
+    public $image;
+    //public $locations;
+    //public $is_submitted;
+    //public $vote;
     /**
 	 * @return string the associated database table name
 	 */
@@ -73,7 +76,7 @@ class Content extends CActiveRecord
 			array('type', 'length', 'max'=>5),
 			array('author, channel_name, authentication, location', 'length', 'max'=>150),
 			array('status', 'length', 'max'=>12),
-			array('notes,vote,image', 'safe'),
+			array('notes, vote, image', 'safe'),
 			// The following rule is used by search().
 			// @todo Please remove those attributes that should not be searched.
 			array('id, gallery_id, user_id, title, description, source, media_id, media_url, alternate_url, type, author, channel_name, authentication, notes, flags, is_ugc, thumb_image, alternate_image, status, date_created, date_modified, is_submitted, location, vote', 'safe', 'on'=>'search'),
@@ -91,6 +94,7 @@ class Content extends CActiveRecord
 			'abuseReports' => array(self::HAS_MANY, 'AbuseReports', 'content_id'),
 			'gallery' => array(self::BELONGS_TO, 'Galleries', 'gallery_id'),
 			'user' => array(self::BELONGS_TO, 'User', 'user_id'),
+            'userProfiles' => array(self::BELONGS_TO, 'UserProfiles', 'user_id'),
 			'contentViews' => array(self::HAS_MANY, 'ContentViews', 'content_id'),
 			'contentVotes' => array(self::HAS_MANY, 'ContentVotes', 'content_id'),
         );
@@ -126,6 +130,7 @@ class Content extends CActiveRecord
             'is_submitted' => 'Is Submitted',
             'location' => 'Location',
             'vote' => 'Vote',
+            'image' => 'Image',
 		);
 	}
 

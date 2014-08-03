@@ -100,7 +100,7 @@ class ApiController extends Controller
                 $is_ugc = isset($_GET['is_ugc']) && !empty($_GET['is_ugc']) ? $_GET['is_ugc'] : '0'; //mandatory
                 $gallery_id = isset($_GET['gallery_id']) && !empty($_GET['gallery_id']) ? (int)$_GET['gallery_id'] : null;
                 $limit = isset( $_GET['limit'] ) && !empty($_GET['limit']) ? (int)$_GET['limit'] : null;
-                $offset = isset( $_GET['offset']) && !empty($_GET['offset']) ? (int)$_GET['offset'] : null;
+                $offset = isset( $_GET['offset']) && !empty($_GET['offset']) ? (int)$_GET['offset'] : 0;
                 $user_id = isset( $_GET['user_id']) && !empty($_GET['user_id']) ? (int)$_GET['user_id'] : null;
                 $channel = isset( $_GET['channel']) && !empty($_GET['channel']) ? $_GET['channel'] : null;
                 $city = isset( $_GET['city']) && !empty($_GET['city']) ? $_GET['city'] : null;
@@ -134,6 +134,9 @@ class ApiController extends Controller
                     $condition .= " AND t.city =".$city;
                 }
 
+                //display only approved content
+                $condition .= " AND t.status = 'approved'";
+
                 $criteria->condition = $condition;
 
                 //echo '<pre>';print_r($criteria);exit;
@@ -142,22 +145,24 @@ class ApiController extends Controller
                 $models = array();
                 if ($model){
                     foreach($model as $content){
-
                         //get the user details
-                        //$user = User::model()->findByPk($content->user_id);
-                        $content->author = $content->user->first_name." ".$content->user->last_name;
+                        //$userProfile = UserProfiles::model()->findByPk($content->user_id);
+                        $content->author = $content->user->userProfiles->full_name;
+                        $content->location = $content->user->userProfiles->city;
+                        $content->image = $content->user->userProfiles->profile_image;
 
                         //replace the http image path to https
                         if ($content->thumb_image){
                             $content->thumb_image = str_replace( 'http://', 'https://', $content->thumb_image );
                         }
-                        $models[] = $content;
+                        $models[] = array('content'=>$content, 'user'=>$content->user->userProfiles);
                     }
                 }
+                $this->_sendResponse(200, CJSON::encode($models),$callback);
                 break;
             default:
                 // Model not implemented error
-                $this->_sendResponse(501, sprintf( 'Error: Mode <b>list</b> is not implemented for model <b>%s</b>', $_GET['model'] ));
+                $this->_sendResponse(200, sprintf( 'Error: Mode <b>list</b> is not implemented for model <b>%s</b>', $_GET['model'] ));
                 Yii::app()->end();
         }
         // Did we get some results?
