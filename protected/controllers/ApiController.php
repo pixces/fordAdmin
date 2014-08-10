@@ -87,16 +87,17 @@ class ApiController extends Controller
                  * Mandatory params
                  * bool $is_ugc
                  *
-                 * Optional Params
+                 * -- Optional Params --
                  * int $gallery_id
-                 * int $user_id
                  * int $limit
                  * int $offset
+                 * int $user_id
                  * string $channel
-                 * string $status
-                 * string $location
-                 * string order
+                 * string $city
+                 * string $orderBy
+                 * string $request_type
                  */
+
                 $is_ugc = isset($_GET['is_ugc']) && !empty($_GET['is_ugc']) ? $_GET['is_ugc'] : '0'; //mandatory
                 $gallery_id = isset($_GET['gallery_id']) && !empty($_GET['gallery_id']) ? (int)$_GET['gallery_id'] : null;
                 $limit = isset( $_GET['limit'] ) && !empty($_GET['limit']) ? (int)$_GET['limit'] : null;
@@ -105,6 +106,8 @@ class ApiController extends Controller
                 $channel = isset( $_GET['channel']) && !empty($_GET['channel']) ? $_GET['channel'] : null;
                 $city = isset( $_GET['city']) && !empty($_GET['city']) ? $_GET['city'] : null;
                 $orderBy = isset( $_GET['order']) && !empty($_GET['order']) ? $_GET['order'] : 't.id DESC';
+                $status = isset($_GET['status']) && !empty($_GET['status']) ? $_GET['status'] : null;
+                $type = isset($_GET['type'])  && !empty($_GET['type']) ? $_GET['type'] : null;
 
                 //set the query criteria
                 $criteria=new CDbCriteria;
@@ -120,6 +123,10 @@ class ApiController extends Controller
                 //setup query conditions
                 $condition = " 1 = 1 ";
 
+                if (isset($status)){
+                    $condition .= " AND t.status = '".$status."'";
+                }
+
                 if (isset($gallery_id)){
                     $condition .= " AND t.gallery_id = ".$gallery_id;
                 }
@@ -128,15 +135,20 @@ class ApiController extends Controller
                     $condition .= " AND t.user_id =".$user_id;
                 }
                 if (isset($channel)){
-                    $condition .= " AND t.channel_name =".$channel;
+                    $condition .= " AND t.channel_name = '".$channel."'";
                 }
+
+                if (isset($type)){
+                    $condition .= " AND t.type ='".$type."'";
+                }
+
+                //need to do a join with user table for this
                 if (isset($city)){
-                    $condition .= " AND t.city =".$city;
+                    $condition .= " AND up.city ='".$city."'";
+                    $criteria->join = ' LEFT JOIN `user_profiles` AS `up` ON t.user_id = up.user_id ';
                 }
 
                 //display only approved content
-                $condition .= " AND t.status = 'approved'";
-
                 $criteria->condition = $condition;
 
                 //echo '<pre>';print_r($criteria);exit;
